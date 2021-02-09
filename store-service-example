@@ -1,0 +1,98 @@
+import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { Dream } from '@models';
+import { IDream } from '@interfaces';
+import { AbstractStore } from '@abstract/store.abstract';
+import { DreamApiService } from '@services/api/dream-api.service';
+
+@Injectable({
+  providedIn: 'root',
+})
+export class DreamStoreService extends AbstractStore<Dream> {
+  public readonly dream$ = this._itemObservable;
+  public readonly dreams$ = this._itemsObservable;
+  public readonly isFetching$ = this._isFetchingObservable;
+  public readonly isFetchingAfterManipulate$ = this._isFetchingAfterManipulateObservable;
+  public readonly response$ = this._responseObservable;
+  public readonly error$ = this._errorObservable;
+
+  public readonly setDream = this._setItemValue;
+  public readonly setDreams = this._setItemsValue;
+  public readonly setError = this._setErrorValue;
+
+  constructor(private apiService: DreamApiService) {
+    super(Dream);
+  }
+
+  getProfileDreams<T>(filters: T = {} as T): Observable<Dream[]> {
+    return this.startFetchingWrapper(
+      this.apiService.getProfileDreams(filters).pipe(this.takeItemsGetModelsAndSetValue()),
+    );
+  }
+
+  getDreamsAsAdmin<T>(filters: T = {} as T): Observable<Dream[]> {
+    return this.startFetchingWrapper(
+      this.apiService.getDreamsAsAdmin(filters).pipe(this.takeItemsGetModelsAndSetValue()),
+    );
+  }
+
+  getPlatformDreamsAsAdmin<T>(filters: T = {} as T, id?: number): Observable<Dream[]> {
+    return this.startFetchingWrapper(
+      this.apiService.getDreamsAsAdmin({ ...filters, platform: id }).pipe(this.takeItemsGetModelsAndSetValue()),
+    );
+  }
+
+  getDreamById(id: number): Observable<Dream | null> {
+    return this.startFetchingWrapper(this.apiService.getDreamById(id).pipe(this.getModelAndSetValue()));
+  }
+
+  getDreamByIdAsAdmin(id: number): Observable<Dream | null> {
+    return this.startFetchingWrapper(this.apiService.getDreamByIdAsAdmin(id).pipe(this.getModelAndSetValue()));
+  }
+
+  createDream(newDream: IDream): Observable<Dream> {
+    return this.startFetchingAfterManipulateWrapper(
+      this.apiService.createDream(newDream).pipe(this.createItemBehavior()),
+    );
+  }
+
+  createRejectDreamApplication(rejectDream: unknown): Observable<unknown> {
+    return this.apiService.createRejectDream(rejectDream).pipe(map(value => this.getModel(Dream, value)));
+  }
+
+  updateDreamAsAdmin(newDream: IDream, id: number): Observable<Dream> {
+    return this.startFetchingAfterManipulateWrapper(
+      this.apiService.updateDreamAsAdmin(newDream, id).pipe(this.updateItemBehavior()),
+    );
+  }
+
+  updateMultipleDreams(newDream: IDream, ids: number[]): Observable<Dream[]> {
+    return this.startFetchingAfterManipulateWrapper(
+      this.apiService.updateMultipleDreams(newDream, ids).pipe(this.updateMultipleItemsBehavior()),
+    );
+  }
+
+  updateMultiplePlatformDreams(newValue: IDream | { platform: string }, ids: number[]): Observable<Dream[]> {
+    return this.startFetchingAfterManipulateWrapper(
+      this.apiService.updateMultipleDreams(newValue, ids).pipe(this.updateMultipleItemsBehavior()),
+    );
+  }
+
+  exportDreams<T>(filters = {} as T, fields: string[], ids: number[]): Observable<Blob> {
+    return this.apiService.exportDreams(filters, fields, ids).pipe(
+      map((result: Blob) => {
+        saveAs(result, 'document.xlsx');
+        return result;
+      }),
+    );
+  }
+
+  setIsDreamCompleted(id: number): Observable<Dream> {
+    return this.apiService.setIsDreamCompleted(id).pipe(this.updateItemBehavior());
+  }
+
+  setIsWithDelivery(id: number, value: boolean): Observable<Dream> {
+    return this.apiService.setIsWithDelivery(id, value).pipe(this.updateItemBehavior());
+  }
+}
